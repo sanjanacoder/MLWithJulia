@@ -23,8 +23,8 @@ true_data = Array(solve(prob_true, Tsit5(), saveat=tsteps))
 # --- Neural ODE Setup ---
 rng = Random.default_rng()
 nn = Lux.Chain(
-    Lux.Dense(3, 32, tanh), 
-    Lux.Dense(32, 3)
+    Lux.Dense(3, 64, tanh), 
+    Lux.Dense(64, 3)
 )
 p_nn, st_nn = Lux.setup(rng, nn)
 
@@ -44,7 +44,7 @@ optprob = Optimization.OptimizationProblem(optf, ComponentArray(p_nn))
 
 # Step 1: Adam 
 println("Starting Adam...")
-res1 = Optimization.solve(optprob, OptimizationOptimisers.Adam(0.005), maxiters=500)
+res1 = Optimization.solve(optprob, OptimizationOptimisers.Adam(0.005), maxiters=1000)
 
 # Step 2: BFGS 
 println("Starting BFGS...")
