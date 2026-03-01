@@ -3,7 +3,7 @@ using ComponentArrays, Lux, DiffEqFlux, OrdinaryDiffEq, Optimization, Optimizati
 
 rng = Random.default_rng()
 
-# --- 1. Generate Synthetic Data (Traditional SIR) ---
+# --- Generate Synthetic Data (Traditional SIR) ---
 N = 1000.0f0
 u0 = Float32[999.0, 1.0, 0.0] 
 tspan = (0.0f0, 160.0f0)
@@ -18,9 +18,10 @@ function true_sir_ode(du, u, p, t)
 end
 
 prob_true = ODEProblem(true_sir_ode, u0, tspan)
+## Generating the ground truth data
 ode_data = Array(solve(prob_true, Tsit5(), saveat = tsteps))
 
-# --- 2. Define the Neural ODE ---
+# --- Define the Neural ODE ---
 dudt2 = Lux.Chain(Lux.Dense(3, 64, tanh), Lux.Dense(64, 3))
 p, st = Lux.setup(rng, dudt2)
 pinit = ComponentArray(p)
@@ -36,7 +37,7 @@ function loss_neuralode(p, _)
     return sum(abs2, ode_data .- pred)
 end
 
-# --- 3. Optimization ---
+# --- Optimization ---
 adtype = Optimization.AutoZygote()
 optf = Optimization.OptimizationFunction(loss_neuralode, adtype)
 optprob = Optimization.OptimizationProblem(optf, pinit)
@@ -46,7 +47,7 @@ res1 = Optimization.solve(optprob, OptimizationOptimisers.Adam(0.01); maxiters =
 optprob2 = remake(optprob; u0 = res1.u)
 res2 = Optimization.solve(optprob2, Optim.BFGS(; initial_stepnorm = 0.01); allow_f_increases = false)
 
-# --- 4. Accuracy Analysis ---
+# --- Accuracy Analysis ---
 final_pred = predict_neuralode(res2.u)
 final_loss = loss_neuralode(res2.u, nothing)
 
@@ -55,7 +56,7 @@ mae_per_compartment = mean(abs.(ode_data .- final_pred), dims=2)
 total_mae = mean(abs.(ode_data .- final_pred))
 rel_error = (total_mae / N) * 100
 
-# --- 5. Print Accuracy Metrics with Units ---
+# --- Print Accuracy Metrics with Units ---
 println("\n" * "="^45)
 println("ACCURACY REPORT")
 println("="^45)
@@ -69,7 +70,7 @@ println("I (Infected):     ", round(mae_per_compartment[2], digits=4))
 println("R (Recovered):    ", round(mae_per_compartment[3], digits=4))
 println("="^45)
 
-# --- 6. Final Comparison Plot ---
+# --- Final Comparison Plot ---
 plt = plot(tsteps, ode_data', labels=["True S" "True I" "True R"], lw=2)
 plot!(plt, tsteps, final_pred', labels=["Pred S" "Pred I" "Pred R"], ls=:dash, lw=2, 
       title="Neural ODE vs Traditional SIR", xlabel="Days", ylabel="Number of Individuals")
